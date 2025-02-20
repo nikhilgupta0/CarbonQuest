@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct EmissionCalculator {
@@ -7,7 +8,7 @@ struct EmissionCalculator {
         "bus": 0.082,        // per km
         "train": 0.041,      // per km
         "electricity": 0.233, // per kWh (US average)
-        "recycling": -1.04,  // per kg (negative because it reduces emissions)
+        "recycling": 1.04,  // per kg (negative because it reduces emissions)
         "beef": 27.0,        // per kg
         "pork": 12.1,        // per kg
         "chicken": 6.9,      // per kg
@@ -62,14 +63,14 @@ struct EmissionCalculator {
     }
 }
 
-struct Streak: Identifiable, Codable {
+struct Streak: Identifiable {
     let id = UUID()
     var count: Int
     var lastUpdated: Date?
     var completedTasks: Set<UUID> // Track completed tasks for today
 }
 
-struct Achievement: Identifiable, Codable {
+struct Achievement: Identifiable {
     let id = UUID()
     let title: String
     var description: String  // Changed to var to update with current requirement
@@ -285,15 +286,12 @@ struct HomeDashboardView: View {
     @EnvironmentObject var appState: AppState
     @State private var showHabits = false
     @AppStorage("isFirstLaunch") private var isFirstLaunch = true
-    @State private var selectedTab = 0
-    let calculator = EmissionCalculator()
-    @State private var co2Saved: Double = 0
-    @State private var showConfetti = false
     @State private var isEarthRotating = true
     @State private var showTipCard = false
     @State private var selectedAction: String?
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("currentTipIndex") private var currentTipIndex = 0
+    let calculator = EmissionCalculator()
     
     // Monthly target for CO₂ savings in kg
     let monthlyTarget: Double = 100.0
@@ -308,12 +306,12 @@ struct HomeDashboardView: View {
         var total = 0.0
         
         // Example activities
-        total += calculator.calculateEmission(activity: "vegetarian_meal", value: 5) // 5 vegetarian meals
-        total += calculator.calculateEmission(activity: "recycling", value: 10)      // 10 kg recycled
-        total += calculator.calculateEmission(activity: "car", value: -20)           // 20 km not driven
-        total += calculator.calculateEmission(activity: "tree_planted", value: 1)    // 1 tree planted
+        total += calculator.calculateEmission(activity: "vegetarian_meal", value: 5)
+        total += calculator.calculateEmission(activity: "recycling", value: 10)
+        total += calculator.calculateEmission(activity: "car", value: -20)
+        total += calculator.calculateEmission(activity: "tree_planted", value: 1)
         
-        return abs(total) // Convert to positive number for display
+        return abs(total)
     }
     
     var activeAchievements: [Achievement] {
@@ -374,7 +372,7 @@ struct HomeDashboardView: View {
                 VStack(spacing: 24) {
                     // Eco Tip Banner
                     if #available(iOS 18.0, *) {
-                        EcoBanner(tip: currentTip, currentTipIndex: $currentTipIndex)
+                        EcoBanner(tip: currentTip)
                             .transition(.move(edge: .top))
                     }
                     
@@ -416,32 +414,32 @@ struct HomeDashboardView: View {
                     }
                     
                     // Quick Action Buttons - Only 2 main actions
-                    HStack(spacing: 16) {
-                        ActionButton(
-                            title: "Log Habit",
-                            icon: "leaf.arrow.circlepath",
-                            color: .green
-                        ) {
-                            withAnimation {
-                                appState.selectedTab = 1
-                            }
-                        }
-                        
-                        ActionButton(
-                            title: "Achievements",
-                            icon: "trophy.fill",
-                            color: .orange
-                        ) {
-                            withAnimation {
-                                appState.selectedTab = 2
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
+//                    HStack(spacing: 16) {
+//                        ActionButton(
+//                            title: "Log Habit",
+//                            icon: "leaf.arrow.circlepath",
+//                            color: .green
+//                        ) {
+//                            withAnimation {
+//                                appState.selectedTab = 1
+//                            }
+//                        }
+//
+//                        ActionButton(
+//                            title: "Achievements",
+//                            icon: "trophy.fill",
+//                            color: .orange
+//                        ) {
+//                            withAnimation {
+//                                appState.selectedTab = 2
+//                            }
+//                        }
+//                    }
+//                    .padding(.horizontal)
                     
                     // Environmental Impact Section
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Environmental Impact")
+                        Text("Your Environmental Impact")
                             .font(.headline)
                             .padding(.horizontal)
                         
@@ -452,31 +450,55 @@ struct HomeDashboardView: View {
                             ImpactCard(
                                 icon: "tree.fill",
                                 value: String(format: "%.1f", ecoData.totalCO2Saved/2),
-                                label: "Trees\nEquivalent"
+                                label: "Trees\nSaved"
                             )
-                            .transition(.scale)
                             
                             ImpactCard(
                                 icon: "car.fill",
                                 value: String(format: "%.1f", ecoData.totalCO2Saved*10),
                                 label: "Km Not\nDriven"
                             )
-                            .transition(.scale)
+                            
+                            ImpactCard(
+                                icon: "aqi.high",
+                                value: String(format: "%.1f", ecoData.totalCO2Saved*0.8),
+                                label: "Air Quality\nImproved (AQI)"
+                            )
                             
                             ImpactCard(
                                 icon: "leaf.fill",
-                                value: "\(ecoData.streak.count)",
-                                label: "Day\nStreak"
+                                value: String(format: "%.1f", ecoData.totalCO2Saved*0.3),
+                                label: "Forest Area\nPreserved (m²)"
                             )
-                            .transition(.scale)
-                            
-                            ImpactCard(
-                                icon: "globe",
-                                value: String(format: "%.1f", ecoData.totalCO2Saved),
-                                label: "Total CO₂\nSaved (kg)"
-                            )
-                            .transition(.scale)
                         }
+                        .padding(.horizontal)
+                        
+                        // Real World Impact section
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Real World Impact")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                ImpactComparison(
+                                    icon: "lungs.fill",
+                                    text: "\(Int(ecoData.totalCO2Saved*0.4)) hours of clean air generated"
+                                )
+                                
+                                ImpactComparison(
+                                    icon: "drop.fill",
+                                    text: "   \(Int(ecoData.totalCO2Saved*5)) liters of clean water preserved"
+                                )
+                                
+                                ImpactComparison(
+                                    icon: "globe.americas.fill",
+                                    text: "  Reduced carbon footprint by \(Int(ecoData.totalCO2Saved*0.2)) earth days"
+                                )
+                            }
+                        }
+                        .padding()
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(12)
                         .padding(.horizontal)
                     }
                 }
@@ -491,7 +513,6 @@ struct HomeDashboardView: View {
                     // Show onboarding only once
                     isFirstLaunch = false
                 }
-                co2Saved = calculateTotalImpact()
                 isEarthRotating = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     withAnimation {
@@ -631,7 +652,7 @@ struct QuickActionButton: View {
     }
 }
 
-struct Habit: Identifiable, Equatable, Codable, Sendable {
+struct Habit: Identifiable, Equatable, Sendable {
     let id = UUID()
     var title: String
     var icon: String
@@ -645,7 +666,7 @@ struct Habit: Identifiable, Equatable, Codable, Sendable {
     var statistics: HabitStatistics
     var description: String
     
-    enum HabitCategory: String, CaseIterable, Codable, Sendable {
+    enum HabitCategory: String, CaseIterable, Sendable {
         case transport = "Transport"
         case food = "Food"
         case recycling = "Recycling"
@@ -654,7 +675,7 @@ struct Habit: Identifiable, Equatable, Codable, Sendable {
         case other = "Other"
     }
     
-    enum HabitFrequency: String, CaseIterable, Codable, Sendable {
+    enum HabitFrequency: String, CaseIterable, Sendable {
         case daily = "Daily"
         case weekly = "Weekly"
         case monthly = "Monthly"
@@ -920,6 +941,8 @@ struct HabitRow: View {
     @State private var animatingHabitId: UUID?
     @State private var showImpactAnimation = false
     @State private var showParticles = false
+    @State private var showDeleteAlert = false
+    @State private var showEditMenu = false
     
     var body: some View {
         HStack {
@@ -1011,6 +1034,19 @@ struct HabitRow: View {
                     )
                 }
             }
+            
+            // Add menu button
+            Menu {
+                Button(role: .destructive) {
+                    showDeleteAlert = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 8)
+            }
         }
         .padding(.vertical, 8)
         .opacity(habit.isCompleted ? 0.8 : 1.0)
@@ -1019,6 +1055,14 @@ struct HabitRow: View {
                 .fill(habit.isCompleted ? Color.green.opacity(0.05) : Color.clear)
         )
         .animation(.spring(), value: habit.isCompleted)
+        .alert("Delete Habit", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                ecoData.deleteHabit(habit)
+            }
+        } message: {
+            Text("Are you sure you want to delete this habit? This action cannot be undone.")
+        }
     }
     
     private func toggleHabit() {
@@ -1199,19 +1243,29 @@ struct HabitTrackerView: View {
                 List {
                     ForEach(filteredHabits) { habit in
                         HabitRow(habit: habit)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                editingHabit = habit
-                            }
+                    }
+                    .onDelete { indexSet in
+                        // Get the habits to delete
+                        let habitsToDelete = indexSet.map { filteredHabits[$0] }
+                        // Delete each habit
+                        for habit in habitsToDelete {
+                            ecoData.deleteHabit(habit)
+                        }
                     }
                 }
             }
             .navigationTitle("Habits")
             .toolbar {
-                Button {
-                    showingAddHabit = true
-                } label: {
-                    Image(systemName: "plus")
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingAddHabit = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
                 }
             }
             .sheet(isPresented: $showingAddHabit) {
@@ -1714,43 +1768,18 @@ class EcoData: ObservableObject {
     @Published var lastUnlockedAchievement: Achievement?
     @Published var achievementHistory: [AchievementHistory] = []
     
-    private let savePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("ecodata.json")
+    let calculator = EmissionCalculator()
+    
+    private var dailyHabits: [Habit] {
+        habits.filter { $0.frequency == .daily }
+    }
     
     init() {
-        // Try to load saved data, or use defaults
-        if let data = try? Data(contentsOf: savePath),
-           let decoded = try? JSONDecoder().decode(SavedData.self, from: data) {
-            self.habits = decoded.habits
-            self.achievements = decoded.achievements
-            self.streak = decoded.streak
-            self.totalCO2Saved = decoded.totalCO2Saved
-        } else {
-            // Use default values if no saved data exists
-            self.habits = defaultHabits
-            self.achievements = defaultAchievements
-            self.streak = Streak(count: 0, lastUpdated: nil, completedTasks: [])
-            self.totalCO2Saved = 0
-        }
+        self.streak = Streak(count: 0, lastUpdated: nil, completedTasks: [])
+        // ... existing init code ...
         
         // Check if we need to reset daily habits
         checkAndResetDailyProgress()
-    }
-    
-    // Add save functionality
-    private func save() {
-        let data = SavedData(
-            habits: habits,
-            achievements: achievements,
-            streak: streak,
-            totalCO2Saved: totalCO2Saved
-        )
-        
-        do {
-            let encoded = try JSONEncoder().encode(data)
-            try encoded.write(to: savePath)
-        } catch {
-            print("Error saving data: \(error.localizedDescription)")
-        }
     }
     
     func checkAndResetDailyProgress() {
@@ -1779,7 +1808,7 @@ class EcoData: ObservableObject {
         }
     }
     
-    func updateStreak(habitId: UUID) {
+    @MainActor func updateStreak(habitId: UUID) {
         let calendar = Calendar.current
         let currentDate = Date()
         
@@ -1807,17 +1836,19 @@ class EcoData: ObservableObject {
         }
         
         objectWillChange.send()
-        save()
     }
     
     func updateTotalCO2Savings() {
         var total = 0.0
         for habit in habits where habit.isCompleted {
-            total += abs(calculator.calculateEmission(activity: habit.activity, value: habit.value))
+            let impact = calculator.calculateEmission(
+                activity: habit.activity,
+                value: habit.value
+            )
+            total += abs(impact)
         }
         totalCO2Saved = total
         updateAchievements()
-        save()
     }
     
     func levelUpAchievement(_ achievement: Achievement) {
@@ -1896,7 +1927,6 @@ class EcoData: ObservableObject {
         
         // Trigger UI update
         objectWillChange.send()
-        save()
     }
     
     private func checkAchievementCompletion(at index: Int) {
@@ -1906,7 +1936,7 @@ class EcoData: ObservableObject {
     }
     
     // Update toggleHabit function in HabitRow
-    func toggleHabit(_ habit: Habit) {
+    @MainActor func toggleHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].isCompleted.toggle()
             
@@ -1951,6 +1981,37 @@ class EcoData: ObservableObject {
             return 0
         }
     }
+    
+    func deleteHabit(_ habit: Habit) {
+        withAnimation {
+            // If the habit was completed, subtract its CO2 impact
+            if habit.isCompleted {
+                let co2Impact = calculator.calculateEmission(
+                    activity: habit.activity,
+                    value: habit.value
+                )
+                totalCO2Saved -= abs(co2Impact)
+            }
+            
+            // Remove the habit
+            habits.removeAll { $0.id == habit.id }
+            
+            // Update achievements
+            updateAchievements()
+            
+            // Update streak if needed
+            if habit.isCompleted {
+                streak.completedTasks.remove(habit.id)
+                // Reset streak if no more completed tasks for today
+                if streak.completedTasks.isEmpty {
+                    streak.count = 0
+                }
+            }
+            
+            // Notify UI of changes
+            objectWillChange.send()
+        }
+    }
 }
 
 struct AchievementHistory: Identifiable {
@@ -1961,7 +2022,7 @@ struct AchievementHistory: Identifiable {
     let co2Impact: Double
 }
 
-struct HabitStatistics: Equatable, Codable, Sendable {
+struct HabitStatistics: Equatable, Sendable {
     var completionCount: Int = 0
     var lastCompletedDate: Date?
     var streakCount: Int = 0
@@ -2003,33 +2064,14 @@ struct EcoTip: Identifiable, Codable {
     let impact: String
 }
 
-// Update EcoBanner with refresh button
+// Update EcoBanner with better design
 @available(iOS 18.0, *)
 struct EcoBanner: View {
     let tip: EcoTip
     @State private var isAnimating = false
-    @Binding var currentTipIndex: Int
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Daily Eco Tip")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Button {
-                    withAnimation {
-                        currentTipIndex = (currentTipIndex + 1) % tips.count
-                    }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundColor(.white)
-                        .font(.system(size: 20))
-                }
-            }
-            
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
@@ -2153,13 +2195,27 @@ struct StreakAnimation: View {
     }
 }
 
-// Add a structure to hold saved data
-private struct SavedData: Codable {
-    let habits: [Habit]
-    let achievements: [Achievement]
-    let streak: Streak
-    let totalCO2Saved: Double
+// Add new component for impact comparisons
+struct ImpactComparison: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundColor(.green)
+                .font(.system(size: 20))
+            
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+        }
+    }
 }
+
+
+
+
 
 
 
