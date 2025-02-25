@@ -8,7 +8,7 @@ struct EmissionCalculator {
         "bus": 0.082,        // per km
         "train": 0.041,      // per km
         "electricity": 0.233, // per kWh (US average)
-        "recycling": 1.04,  // per kg (negative because it reduces emissions)
+        "recycling": 1.04,  // per kg
         "beef": 27.0,        // per kg
         "pork": 12.1,        // per kg
         "chicken": 6.9,      // per kg
@@ -222,9 +222,9 @@ class AppState: ObservableObject {
 struct ContentView: View {
     @StateObject private var ecoData = EcoData()
     @StateObject private var appState = AppState()
-    @State private var co2Saved: Double = 0
+    @AppStorage("isFirstLaunch") private var isFirstLaunch = true
     let calculator = EmissionCalculator()
-
+    
     init() {
         configureTabBarAppearance()
     }
@@ -239,32 +239,35 @@ struct ContentView: View {
     }
     
     var body: some View {
-        TabView(selection: $appState.selectedTab) {
-            HomeDashboardView()
-                .environmentObject(ecoData)
-                .environmentObject(appState)
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
+        Group {
+            if isFirstLaunch {
+                OnboardingScreen(isFirstLaunch: $isFirstLaunch)
+            } else {
+                TabView(selection: $appState.selectedTab) {
+                    HomeDashboardView()
+                        .environmentObject(ecoData)
+                        .environmentObject(appState)
+                        .tabItem {
+                            Label("Home", systemImage: "house.fill")
+                        }
+                        .tag(0)
+                    
+                    HabitTrackerView()
+                        .environmentObject(ecoData)
+                        .tabItem {
+                            Label("Habits", systemImage: "checklist")
+                        }
+                        .tag(1)
+                    
+                    AchievementsView()
+                        .environmentObject(ecoData)
+                        .tabItem {
+                            Label("Achievements", systemImage: "trophy.fill")
+                        }
+                        .tag(2)
                 }
-                .tag(0)
-            
-            HabitTrackerView()
-                .environmentObject(ecoData)
-                .tabItem {
-                    Label("Habits", systemImage: "checklist")
-                }
-                .tag(1)
-            
-            AchievementsView()
-                .environmentObject(ecoData)
-                .tabItem {
-                    Label("Achievements", systemImage: "trophy.fill")
-                }
-                .tag(2)
-        }
-        .accentColor(.green)
-        .onAppear {
-            co2Saved = calculateTotalImpact()
+                .accentColor(.green)
+            }
         }
     }
     
@@ -306,12 +309,12 @@ struct HomeDashboardView: View {
         var total = 0.0
         
         // Example activities
-        total += calculator.calculateEmission(activity: "vegetarian_meal", value: 5)
-        total += calculator.calculateEmission(activity: "recycling", value: 10)
-        total += calculator.calculateEmission(activity: "car", value: -20)
-        total += calculator.calculateEmission(activity: "tree_planted", value: 1)
+        total += calculator.calculateEmission(activity: "vegetarian_meal", value: 5) // 5 vegetarian meals
+        total += calculator.calculateEmission(activity: "recycling", value: 10)      // 10 kg recycled
+        total += calculator.calculateEmission(activity: "car", value: -20)           // 20 km not driven
+        total += calculator.calculateEmission(activity: "tree_planted", value: 1)    // 1 tree planted
         
-        return abs(total)
+        return abs(total) // Convert to positive number for display
     }
     
     var activeAchievements: [Achievement] {
@@ -1188,48 +1191,14 @@ struct HabitTrackerView: View {
                 // Category picker
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        CategoryButton(
-                            category: .transport,
-                            isSelected: selectedCategory == .transport
-                        ) {
-                            withAnimation {
-                                selectedCategory = selectedCategory == .transport ? nil : .transport
-                            }
-                        }
-                        
-                        CategoryButton(
-                            category: .food,
-                            isSelected: selectedCategory == .food
-                        ) {
-                            withAnimation {
-                                selectedCategory = selectedCategory == .food ? nil : .food
-                            }
-                        }
-                        
-                        CategoryButton(
-                            category: .recycling,
-                            isSelected: selectedCategory == .recycling
-                        ) {
-                            withAnimation {
-                                selectedCategory = selectedCategory == .recycling ? nil : .recycling
-                            }
-                        }
-                        
-                        CategoryButton(
-                            category: .water,
-                            isSelected: selectedCategory == .water
-                        ) {
-                            withAnimation {
-                                selectedCategory = selectedCategory == .water ? nil : .water
-                            }
-                        }
-                        
-                        CategoryButton(
-                            category: .other,
-                            isSelected: selectedCategory == .other
-                        ) {
-                            withAnimation {
-                                selectedCategory = selectedCategory == .other ? nil : .other
+                        ForEach(Habit.HabitCategory.allCases, id: \.self) { category in
+                            CategoryButton(
+                                category: category,
+                                isSelected: selectedCategory == category
+                            ) {
+                                withAnimation {
+                                    selectedCategory = selectedCategory == category ? nil : category
+                                }
                             }
                         }
                     }
@@ -1245,9 +1214,7 @@ struct HabitTrackerView: View {
                         HabitRow(habit: habit)
                     }
                     .onDelete { indexSet in
-                        // Get the habits to delete
                         let habitsToDelete = indexSet.map { filteredHabits[$0] }
-                        // Delete each habit
                         for habit in habitsToDelete {
                             ecoData.deleteHabit(habit)
                         }
@@ -2213,6 +2180,153 @@ struct ImpactComparison: View {
     }
 }
 
+struct OnboardingScreen: View {
+    @Binding var isFirstLaunch: Bool
+    @State private var currentPage = 0
+    
+    let pages = [
+        OnboardingPage(
+            title: "Welcome to CarbonQuest",
+            description: "Your journey to a sustainable future starts here. Track habits, reduce emissions, and make a real impact on our planet.",
+            icon: "leaf.circle.fill",
+            color: .green
+        ),
+        OnboardingPage(
+            title: "Track Your Impact",
+            description: "Monitor your daily eco-friendly habits and see how much CO₂ you're saving with each action.",
+            icon: "chart.line.uptrend.xyaxis",
+            color: .blue
+        ),
+        OnboardingPage(
+            title: "Earn Achievements",
+            description: "Complete challenges and unlock achievements as you build sustainable habits.",
+            icon: "trophy.fill",
+            color: .orange
+        ),
+        OnboardingPage(
+            title: "Make a Difference",
+            description: "Join thousands of others in the quest to create a greener, cleaner planet for future generations.",
+            icon: "globe.americas.fill",
+            color: .green
+        )
+    ]
+    
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Page content
+                TabView(selection: $currentPage) {
+                    ForEach(pages.indices, id: \.self) { index in
+                        OnboardingPageView(page: pages[index])
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .animation(.easeInOut, value: currentPage)
+                
+                // Bottom section with indicators and button
+                VStack(spacing: 24) {
+                    // Page indicators
+                    HStack(spacing: 8) {
+                        ForEach(0..<pages.count, id: \.self) { index in
+                            Circle()
+                                .fill(currentPage == index ? Color.green : Color.gray.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(currentPage == index ? 1.2 : 1.0)
+                                .animation(.spring(), value: currentPage)
+                        }
+                    }
+                    .padding(.top, 20)
+                    
+                    // Action button
+                    Button {
+                        withAnimation {
+                            isFirstLaunch = false
+                        }
+                    } label: {
+                        Text(currentPage == pages.count - 1 ? "Make Your Impact" : "Continue")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.green, Color.green.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .shadow(color: Color.green.opacity(0.3), radius: 10, y: 5)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 40)
+                }
+                .background(Color.white)
+            }
+        }
+    }
+}
+
+struct OnboardingPage: Identifiable {
+    let id = UUID()
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+}
+
+struct OnboardingPageView: View {
+    let page: OnboardingPage
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 32) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(page.color.opacity(0.1))
+                    .frame(width: 200, height: 200)
+                
+                Image(systemName: page.icon)
+                    .font(.system(size: 80))
+                    .foregroundColor(page.color)
+                    .scaleEffect(isAnimating ? 1.0 : 0.7)
+                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+            }
+            .padding(.top, 60)
+            
+            VStack(spacing: 16) {
+                Text(page.title)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                    .opacity(isAnimating ? 1 : 0)
+                    .offset(y: isAnimating ? 0 : 20)
+                
+                Text(page.description)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 32)
+                    .opacity(isAnimating ? 1 : 0)
+                    .offset(y: isAnimating ? 0 : 20)
+            }
+            
+            Spacer()
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.8)) {
+                isAnimating = true
+            }
+        }
+        .onDisappear {
+            isAnimating = false
+        }
+    }
+}
 
 
 
@@ -2226,3 +2340,5 @@ struct ImpactComparison: View {
 
 
 
+
+ 
